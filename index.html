@@ -290,7 +290,7 @@ window.addWater = function(event) {
   todayKey = getTodayKey();
   if (!waterData[todayKey]) waterData[todayKey] = { amount: 0 };
   waterData[todayKey].amount += currentStep;
-  set(ref(db, 'water'), waterData);
+  set(ref(db, 'water-vi'), waterData);
 
   // Эффект круга при клике
   if (event && event.currentTarget) {
@@ -309,7 +309,7 @@ window.undoWater = function() {
   todayKey = getTodayKey();
   if (waterData[todayKey] && waterData[todayKey].amount > 0) {
     waterData[todayKey].amount = Math.max(0, waterData[todayKey].amount - currentStep);
-    set(ref(db, 'water'), waterData);
+    set(ref(db, 'water-vi'), waterData);
   }
 };
 
@@ -373,7 +373,7 @@ window.showPage = function(p) {
   window.scrollTo(0,0);
 };
 
-onValue(ref(db, 'water'), (s) => {
+onValue(ref(db, 'water-vi'), (s) => {
   waterData = s.val() || {};
   updateUI();
   if (document.getElementById('page-calendar').style.display === 'block') renderCalendar();
