@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  
+  <!-- Разрешаем установку как приложение -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Вода">
+  
+  <!-- ПУТЬ К ТВОЕЙ ИКОНКЕ (важно!) -->
+  <link rel="apple-touch-icon" href="icon.png">
+  <link rel="icon" type="image/png" href="icon.png">
+
+  <title>Вода</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0a0e1a; color: #fff; min-height: 100vh; overflow-x: hidden; }
+
+  /* НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ */
+  .tab-bar { 
+    display: flex; background: #0f1420; border-top: 1px solid #1a2035; position: fixed;
+    bottom: 0; left: 0; right: 0; height: 85px; padding-bottom: env(safe-area-inset-bottom); z-index: 1000;
+  }
+  .tab { 
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 500; color: #a0adba; cursor: pointer; transition: all 0.2s; position: relative;
+  }
+  .tab svg { margin-bottom: 4px; transition: transform 0.2s; opacity: 0.8; }
+  .tab.active { color: #4fc3f7; font-weight: 700; }
+  .tab.active svg { transform: translateY(-2px); opacity: 1; }
+  .tab.active::before { content: ''; position: absolute; top: 0; width: 40px; height: 4px; background: #4fc3f7; border-radius: 0 0 4px 4px; }
+
+  /* СТРАНИЦЫ */
+  #page-main, #page-calendar, #page-settings { min-height: 100vh; display: none; padding-bottom: 130px; }
+  #page-main { display: flex; flex-direction: column; align-items: center; padding-top: 40px; }
+  #page-calendar, #page-settings { padding: 20px 16px 150px; }
+
+  /* ГЛАВНАЯ */
+  .water-info { text-align: center; margin-bottom: 20px; }
+  .water-amount { font-size: 44px; font-weight: 700; color: #4fc3f7; line-height: 1; }
+  .water-goal { font-size: 15px; color: #a0adba; margin-top: 6px; }
+  .water-pct { font-size: 18px; color: #7ec8e3; margin-top: 4px; font-weight: 600; }
+  .figure-wrap { position: relative; width: 200px; height: 340px; margin: 0 auto 30px; cursor: pointer; user-select: none; transition: transform 0.1s; }
+  .figure-wrap:active { transform: scale(0.97); }
+  .figure-svg { width: 100%; height: 100%; }
+  .btn-row { display: flex; gap: 16px; width: 100%; max-width: 320px; }
+  .btn-add { flex: 1; background: linear-gradient(135deg, #1a6fa8, #4fc3f7); border: none; border-radius: 18px; padding: 20px; font-size: 18px; font-weight: 700; color: #fff; cursor: pointer; box-shadow: 0 4px 25px rgba(79,195,247,0.3); }
+ .btn-undo { 
+    width: 65px; 
+    height: 65px; /* Делаем её квадратной и соразмерной */
+    background: rgba(26, 32, 53, 0.6); 
+    border: 1px solid rgba(79, 195, 247, 0.3); 
+    border-radius: 18px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(10px); /* Эффект матового стекла */
+  }
+
+  .btn-undo svg {
+    color: #4fc3f7;
+    filter: drop-shadow(0 0 5px rgba(79, 195, 247, 0.4));
+  }
+
+  .btn-undo:active:not(:disabled) { 
+    transform: scale(0.9); 
+    background: rgba(79, 195, 247, 0.1);
+  }
+
+  .btn-undo:disabled { 
+    opacity: 0.2; 
+    filter: grayscale(1);
+    cursor: default;
+  }
+
+  /* КАЛЕНДАРЬ */
+  .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+  .cal-title { font-size: 20px; font-weight: 700; color: #fff; }
+  .cal-nav { background: #1a2035; border: 1px solid #2a3550; border-radius: 10px; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; color: #4fc3f7; font-size: 20px; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .cal-day-name { text-align: center; font-size: 12px; color: #a0adba; padding-bottom: 10px; font-weight: 600; }
+  .cal-day { aspect-ratio: 1; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0f1420; border: 1px solid #1a2035; position: relative; }
+  .cal-day.today { border-color: #4fc3f7; border-width: 2px; }
+  .cal-day-num { font-size: 14px; font-weight: 600; color: #fff; }
+  .cal-day-ml { font-size: 8px; color: #8e99af; margin-top: 2px; }
+  .cal-day.green { background: #0d3320; border-color: #2d7a4f; }
+  .cal-day.yellow { background: #2a2000; border-color: #7a6000; }
+  .cal-day.red { background: #2a0a0a; border-color: #7a2020; }
+
+  /* НАСТРОЙКИ */
+  .settings-title { font-size: 24px; font-weight: 700; margin-bottom: 25px; color: #fff; }
+  .settings-card { background: #0f1420; border: 1px solid #1a2035; border-radius: 20px; padding: 20px; margin-bottom: 20px; }
+  .setting-label { display: block; font-size: 14px; color: #a0adba; margin-bottom: 15px; font-weight: 500; }
+  .step-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .step-btn { background: #1a2035; border: 1px solid #2a3550; border-radius: 14px; padding: 15px; color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+  .step-btn.active { background: #4fc3f7; color: #0a0e1a; border-color: #4fc3f7; box-shadow: 0 0 15px rgba(79,195,247,0.4); }
+.goal-btn { 
+    background: #1a2035; border: 1px solid #2a3550; border-radius: 14px; 
+    padding: 15px; color: #fff; font-weight: 600; cursor: pointer; transition: 0.2s;
+  }
+  .goal-btn.active { background: #4fc3f7; color: #0a0e1a; border-color: #4fc3f7; }
+  /* СТАТИСТИКА */
+  .stats-card { background: #0f1420; border: 1px solid #1a2035; border-radius: 16px; padding: 20px; margin-top: 30px; }
+  .stats-row { display: flex; justify-content: space-around; text-align: center; }
+  .stat-val { font-size: 22px; font-weight: 800; color: #4fc3f7; }
+  .stat-label { font-size: 9px; color: #8e99af; text-transform: uppercase; margin-top: 4px; font-weight: 600; }
+
+  .ripple { position: absolute; border-radius: 50%; background: rgba(79,195,247,0.3); animation: ripple-anim 0.6s ease-out forwards; pointer-events: none; }
+  @keyframes ripple-anim { 0% { transform: scale(0); opacity: 1; } 100% { transform: scale(4); opacity: 0; } }
+</style>
+</head>
+<body>
+
+<!-- СТРАНИЦА: ГЛАВНАЯ -->
+<div id="page-main" style="display: flex;">
+  <div class="water-info">
+    <div class="water-amount" id="amount-display">0 Мл</div>
+    <div class="water-goal">Цель: 3000 Мл</div>
+    <div class="water-pct" id="pct-display">0%</div>
+  </div>
+
+  <div class="figure-wrap" id="figure-wrap" onclick="addWater(event)">
+    <svg class="figure-svg" viewBox="0 0 200 360">
+      <defs>
+        <clipPath id="bodyClip"><path d="M40,20 L160,20 L145,340 L55,340 Z"/></clipPath>
+        <linearGradient id="waterGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#4fc3f7" stop-opacity="0.8"/>
+          <stop offset="100%" stop-color="#0277bd" stop-opacity="1"/>
+        </linearGradient>
+      </defs>
+      <path d="M40,20 L160,20 L145,340 L55,340 Z" fill="#0f1a2a" />
+      <g clip-path="url(#bodyClip)">
+        <rect id="water-fill" x="0" y="340" width="200" height="340" fill="url(#waterGrad)" />
+        <path d="M-40 340 Q-10 332 20 340 Q50 348 80 340 Q110 332 140 340 Q170 348 200 340 Q230 332 260 340 L260 400 L-40 400 Z" fill="url(#waterGrad)" opacity="0.5">
+          <animateTransform attributeName="transform" type="translate" from="0,0" to="-60,0" dur="2.5s" repeatCount="indefinite"/>
+        </path>
+      </g>
+    </svg>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn-add" id="main-add-btn" onclick="addWater(null)">+ 250 мл</button>
+    <button class="btn-undo" id="btn-undo" onclick="undoWater()" disabled>
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+    <path d="M3 3v5h5"></path>
+  </svg>
+</button>
+  </div>
+</div>
+
+<!-- СТРАНИЦА: КАЛЕНДАРЬ -->
+<div id="page-calendar">
+  <div class="cal-header">
+    <div class="cal-nav" onclick="changeMonth(-1)">‹</div>
+    <div class="cal-title" id="cal-title">Март 2026</div>
+    <div class="cal-nav" onclick="changeMonth(1)">›</div>
+  </div>
+  <div class="cal-grid" id="cal-grid"></div>
+  
+  <div class="stats-card">
+    <div class="stats-row">
+      <div class="stat-item"><div class="stat-val" id="stat-days">0</div><div class="stat-label">Дней Нормы</div></div>
+      <div class="stat-item"><div class="stat-val" id="stat-avg">0</div><div class="stat-label">Среднее мл</div></div>
+      <div class="stat-item"><div class="stat-val" id="stat-streak">0</div><div class="stat-label">Дней подряд</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- СТРАНИЦА: НАСТРОЙКИ -->
+<div id="page-settings">
+  <h2 style="margin-bottom:20px">Настройки</h2>
+  
+  <div class="settings-card" style="margin-bottom: 20px;">
+    <p style="color:#a0adba; font-size:14px">Ваша цель на день:</p>
+    <div class="step-grid">
+      <button class="goal-btn" onclick="setGoal(2000)">2000 мл</button>
+      <button class="goal-btn" onclick="setGoal(2500)">2500 мл</button>
+      <button class="goal-btn" onclick="setGoal(3000)">3000 мл</button>
+      <button class="goal-btn" onclick="setGoal(3500)">3500 мл</button>
+    </div>
+  </div>
+
+  <div class="settings-card">
+    <p style="color:#a0adba; font-size:14px">Порция воды (шаг кнопки):</p>
+    <div class="step-grid">
+      <button class="step-btn" onclick="setStep(100)">100 мл</button>
+      <button class="step-btn" onclick="setStep(250)">250 мл</button>
+      <button class="step-btn" onclick="setStep(350)">350 мл</button>
+      <button class="step-btn" onclick="setStep(500)">500 мл</button>
+    </div>
+  </div>
+</div>
+  <p style="text-align: center; color: #44516d; font-size: 12px; margin-top: 40px;">Вода Трекер v2.1</p>
+</div>
+
+<!-- МЕНЮ -->
+<div class="tab-bar">
+  <div class="tab active" id="tab-main" onclick="showPage('main')">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg>
+    <span>Сегодня</span>
+  </div>
+  <div class="tab" id="tab-cal" onclick="showPage('calendar')">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><path d="M3 10h18M8 2v4M16 2v4"></path></svg>
+    <span>Календарь</span>
+  </div>
+  <div class="tab" id="tab-settings" onclick="showPage('settings')">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    <span>Настройки</span>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCwcdl1oZhVUbEaoQ4HkNWmUK60uOZ18UE",
+  authDomain: "mister-black-tracker.firebaseapp.com",
+  databaseURL: "https://mister-black-tracker-default-rtdb.firebaseio.com",
+  projectId: "mister-black-tracker",
+  storageBucket: "mister-black-tracker.firebasestorage.app",
+  messagingSenderId: "13220057721",
+  appId: "1:13220057721:web:589be95a249d6a4c0c3aa8"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// Настройки (берем из памяти или ставим дефолт)
+let currentGoal = parseInt(localStorage.getItem('water_goal')) || 3000;
+let currentStep = parseInt(localStorage.getItem('water_step')) || 250;
+
+let todayKey = getTodayKey();
+let waterData = {};
+let calViewYear = new Date().getFullYear();
+let calViewMonth = new Date().getMonth();
+
+function getTodayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// НАСТРОЙКА ПОРЦИИ
+window.setStep = function(val) {
+  currentStep = val;
+  localStorage.setItem('water_step', val);
+  updateUI(); 
+};
+
+// НАСТРОЙКА ЦЕЛИ
+window.setGoal = function(val) {
+  currentGoal = val;
+  localStorage.setItem('water_goal', val);
+  updateUI();
+};
+
+function updateUI() {
+  const amount = (waterData[todayKey] && waterData[todayKey].amount) || 0;
+  // Считаем проценты от ВЫБРАННОЙ цели
+  const pct = Math.min(100, Math.round(amount / currentGoal * 100));
+  
+  document.getElementById('amount-display').textContent = amount.toLocaleString() + ' мл';
+  document.getElementById('pct-display').textContent = pct + '%';
+  document.querySelector('.water-goal').textContent = `Цель: ${currentGoal} мл`;
+  
+  const y = 340 - (pct / 100 * 320);
+  document.getElementById('water-fill').setAttribute('y', y);
+  document.getElementById('btn-undo').disabled = amount === 0;
+  
+  // Обновляем текст кнопки на главной
+  document.getElementById('main-add-btn').textContent = `+ ${currentStep} мл`;
+
+  // Подсвечиваем кнопки в настройках
+  document.querySelectorAll('.step-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.includes(currentStep));
+  });
+  document.querySelectorAll('.goal-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.includes(currentGoal));
+  });
+}
+
+window.addWater = function(event) {
+  if (navigator.vibrate) navigator.vibrate(40); // Вибрация
+  
+  todayKey = getTodayKey();
+  if (!waterData[todayKey]) waterData[todayKey] = { amount: 0 };
+  waterData[todayKey].amount += currentStep;
+  set(ref(db, 'water'), waterData);
+
+  // Эффект круга при клике
+  if (event && event.currentTarget) {
+    const wrap = event.currentTarget;
+    const ripple = document.createElement('div');
+    ripple.className = 'ripple';
+    ripple.style.cssText = `left:80px;top:150px;width:40px;height:40px;`;
+    wrap.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 600);
+  }
+};
+
+window.undoWater = function() {
+  if (navigator.vibrate) navigator.vibrate([30, 50, 30]); // Вибрация на отмену
+  
+  todayKey = getTodayKey();
+  if (waterData[todayKey] && waterData[todayKey].amount > 0) {
+    waterData[todayKey].amount = Math.max(0, waterData[todayKey].amount - currentStep);
+    set(ref(db, 'water'), waterData);
+  }
+};
+
+window.changeMonth = function(dir) {
+  calViewMonth += dir;
+  if (calViewMonth > 11) { calViewMonth = 0; calViewYear++; }
+  else if (calViewMonth < 0) { calViewMonth = 11; calViewYear--; }
+  renderCalendar();
+};
+
+function renderCalendar() {
+  const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  document.getElementById('cal-title').textContent = `${MONTHS[calViewMonth]} ${calViewYear}`;
+  const grid = document.getElementById('cal-grid');
+  grid.innerHTML = '';
+  
+  ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(d => {
+    const el = document.createElement('div'); el.className = 'cal-day-name'; el.textContent = d; grid.appendChild(el);
+  });
+  
+  const first = new Date(calViewYear, calViewMonth, 1);
+  let start = first.getDay() === 0 ? 7 : first.getDay();
+  for (let i = 1; i < start; i++) grid.appendChild(Object.assign(document.createElement('div'), {className:'cal-day empty'}));
+  
+  const days = new Date(calViewYear, calViewMonth+1, 0).getDate();
+  const today = new Date();
+  
+  let norm = 0, total = 0, count = 0;
+  for (let d = 1; d <= days; d++) {
+    const key = `${calViewYear}-${String(calViewMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const amount = waterData[key] ? waterData[key].amount : 0;
+    const el = document.createElement('div'); el.className = 'cal-day';
+    
+    if (d === today.getDate() && calViewMonth === today.getMonth() && calViewYear === today.getFullYear()) el.classList.add('today');
+    
+    if (amount > 0) {
+      const p = amount / currentGoal * 100; // Считаем от текущей цели
+      if (p >= 100) { el.classList.add('green'); norm++; }
+      else if (p >= 70) el.classList.add('yellow');
+      else el.classList.add('red');
+      total += amount; count++;
+      el.innerHTML = `<div class="cal-day-num">${d}</div><div class="cal-day-ml">${(amount/1000).toFixed(1)}л</div>`;
+    } else { el.innerHTML = `<div class="cal-day-num">${d}</div>`; }
+    grid.appendChild(el);
+  }
+
+  document.getElementById('stat-days').textContent = norm;
+  document.getElementById('stat-avg').textContent = count > 0 ? Math.round(total/count) : 0;
+}
+
+window.showPage = function(p) {
+  document.getElementById('page-main').style.display = p === 'main' ? 'flex' : 'none';
+  document.getElementById('page-calendar').style.display = p === 'calendar' ? 'block' : 'none';
+  document.getElementById('page-settings').style.display = p === 'settings' ? 'block' : 'none';
+  
+  document.getElementById('tab-main').classList.toggle('active', p === 'main');
+  document.getElementById('tab-cal').classList.toggle('active', p === 'calendar');
+  document.getElementById('tab-settings').classList.toggle('active', p === 'settings');
+  
+  if (p === 'calendar') renderCalendar();
+  window.scrollTo(0,0);
+};
+
+onValue(ref(db, 'water'), (s) => {
+  waterData = s.val() || {};
+  updateUI();
+  if (document.getElementById('page-calendar').style.display === 'block') renderCalendar();
+});
+</script>
+</body>
+</html>
